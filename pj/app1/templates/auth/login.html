@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div class="text-center">
+            <h2 class="mt-6 text-4xl font-bold neon-text" style="color: var(--neon-blue);">
+                Welcome Back
+            </h2>
+            <p class="mt-2 text-gray-400">Sign in to your account</p>
+        </div>
+        
+        {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+            <div class="p-4 rounded-lg {% if message.tags == 'error' %}bg-red-500/20 border border-red-500 text-red-300{% else %}bg-neon-blue/20 border border-neon-blue text-neon-blue{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <form class="mt-8 space-y-6" method="POST">
+            {% csrf_token %}
+            <div class="rounded-md shadow-sm space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                    <input id="username" name="username" type="text" required 
+                           class="appearance-none relative block w-full px-4 py-3 gradient-bg border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neon-blue focus:border-transparent"
+                           placeholder="Enter your username">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                    <input id="password" name="password" type="password" required 
+                           class="appearance-none relative block w-full px-4 py-3 gradient-bg border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neon-blue focus:border-transparent"
+                           placeholder="Enter your password">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div class="text-sm">
+                    <a href="{% url 'signup' %}" class="font-medium text-neon-blue hover:text-neon-purple transition-colors">
+                        Don't have an account? Sign up
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" 
+                        class="group relative w-full flex justify-center py-3 px-4 border border-transparent rounded-lg font-bold bg-gradient-to-r from-neon-blue to-neon-purple hover:scale-105 transition-transform duration-300">
+                    Sign In
+                </button>
+            </div>
+            
+            <div class="text-center">
+                <p class="text-gray-500 text-sm">
+                    Demo account: <span class="text-neon-blue">demoo</span> / <span class="text-neon-blue">randompass111
+                </p>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

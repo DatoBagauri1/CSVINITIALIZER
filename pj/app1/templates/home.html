@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen relative overflow-hidden">
+    <!-- Floating Shapes -->
+    <div class="absolute top-1/4 left-1/4 w-64 h-64 rounded-full border-2 border-neon-blue/20 float"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 border-2 border-neon-purple/20 rounded-lg float" style="animation-delay: -3s;"></div>
+    
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 pt-20 relative z-10">
+        <!-- Header -->
+        <div class="text-center mb-16">
+            <h1 class="text-6xl md:text-8xl font-bold mb-6 neon-text" style="color: var(--neon-blue);">
+                <span class="float">CSV Analyzer</span>
+
+            </h1>
+            <p class="text-2xl text-gray-300 mb-8 font-light">Revolutionary CSV Analysis Platform</p>
+            <div class="inline-block relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
+                <div class="relative px-8 py-4 gradient-bg rounded-lg">
+                    <span class="text-xl">Upload & Visualize in Seconds</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Zone -->
+        <div class="max-w-4xl mx-auto mb-20">
+            <div id="uploadZone" class="gradient-bg rounded-2xl p-8 border-2 border-dashed border-neon-blue/30 hover:border-neon-blue transition-all duration-300 cursor-pointer group">
+                <div class="text-center py-12">
+                    <div class="w-24 h-24 mx-auto mb-8 relative">
+                        <div class="absolute inset-0 bg-neon-blue/20 rounded-full animate-ping"></div>
+                        <div class="absolute inset-4 bg-gradient-to-br from-neon-blue to-neon-purple rounded-full flex items-center justify-center">
+                            <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-2xl font-bold mb-4 neon-text" style="color: var(--neon-blue);">Drop CSV File Here</h3>
+                    <p class="text-gray-400 mb-6">or click to browse (Max 10MB)</p>
+                    
+                    <input type="file" id="csvFile" accept=".csv" class="hidden">
+                    
+                    <div class="flex flex-wrap gap-4 justify-center">
+                        <button onclick="document.getElementById('csvFile').click()" 
+                                class="px-8 py-3 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg font-bold text-lg hover:scale-105 transition-transform duration-300 glow">
+                            Choose File
+                        </button>
+                        <button onclick="useSampleData()" 
+                                class="px-8 py-3 gradient-bg border border-neon-pink/30 rounded-lg font-bold text-lg hover:border-neon-pink transition-all duration-300">
+                            Try Sample Data
+                        </button>
+                    </div>
+                    
+                    <div class="mt-8 text-sm text-gray-500">
+                        Supports: .csv files with any delimiter
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+            {% for feature in features %}
+            <div class="gradient-bg rounded-xl p-6 hover:scale-105 transition-transform duration-300 group">
+                <div class="w-14 h-14 rounded-lg bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform duration-300">
+                    <span class="text-2xl">📊</span>
+                </div>
+                <h3 class="text-xl font-bold mb-3">{{ feature.title }}</h3>
+                <p class="text-gray-400">{{ feature.description }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% if user.is_authenticated %}
+<!-- User Dashboard -->
+<div class="mb-12">
+    <h2 class="text-2xl font-bold mb-6">Your Analytics Dashboard</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Recent Files -->
+        <div class="gradient-bg rounded-2xl p-6">
+            <h3 class="text-xl font-bold mb-4 flex items-center">
+                <span class="mr-3">📁</span>
+                Recent Files
+            </h3>
+            {% if recent_files %}
+            <div class="space-y-3">
+                {% for file in recent_files %}
+                <a href="{% url 'analyze' file.analysissession_set.first.id %}" 
+                   class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/50 transition-colors duration-300">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-lg bg-neon-blue/20 flex items-center justify-center mr-4">
+                            <span class="text-lg">📄</span>
+                        </div>
+                        <div>
+                            <div class="font-medium">{{ file.name|truncatechars:30 }}</div>
+                            <div class="text-sm text-gray-400">{{ file.rows }} rows × {{ file.columns }} cols</div>
+                        </div>
+                    </div>
+                    <span class="text-gray-400">→</span>
+                </a>
+                {% endfor %}
+            </div>
+            <div class="mt-6">
+                <a href="{% url 'my_files' %}" 
+                   class="text-neon-blue hover:text-neon-purple transition-colors">
+                    View all files →
+                </a>
+            </div>
+            {% else %}
+            <p class="text-gray-400 mb-4">No files uploaded yet</p>
+            {% endif %}
+        </div>
+        
+        <!-- Recent Charts -->
+        <div class="gradient-bg rounded-2xl p-6">
+            <h3 class="text-xl font-bold mb-4 flex items-center">
+                <span class="mr-3">📊</span>
+                Recent Charts
+            </h3>
+            {% if recent_charts %}
+            <div class="space-y-3">
+                {% for chart in recent_charts %}
+                <a href="{% url 'dashboard' chart.session.id %}" 
+                   class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/50 transition-colors duration-300">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-lg bg-neon-purple/20 flex items-center justify-center mr-4">
+                            <span class="text-lg">
+                                {% if chart.chart_type == 'bar' %}📊
+                                {% elif chart.chart_type == 'line' %}📈
+                                {% elif chart.chart_type == 'pie' %}🥧
+                                {% else %}📊{% endif %}
+                            </span>
+                        </div>
+                        <div>
+                            <div class="font-medium">{{ chart.title|truncatechars:30 }}</div>
+                            <div class="text-sm text-gray-400">{{ chart.chart_type|title }}</div>
+                        </div>
+                    </div>
+                    <span class="text-gray-400">→</span>
+                </a>
+                {% endfor %}
+            </div>
+            <div class="mt-6">
+                <a href="{% url 'my_charts' %}" 
+                   class="text-neon-blue hover:text-neon-purple transition-colors">
+                    View all charts →
+                </a>
+            </div>
+            {% else %}
+            <p class="text-gray-400 mb-4">No charts created yet</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+    <!-- Animated Footer -->
+    <div class="gradient-bg border-t border-gray-800 py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <div class="text-2xl font-bold neon-text" style="color: var(--neon-blue);">CSV Analyzer</div>
+                    <div class="text-gray-500">© 2026 Future Analytics Inc.</div>
+                    <div class="text-gray-500">Crafted with 💜 By Batoni Daviti and Batoni Giorgi</div>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="https://github.com/DatoBagauri1" class="text-gray-400 hover:text-neon-blue transition-colors duration-300">GitHub</a>
+                    <a href="https://www.instagram.com/bagauridato1/" class="text-gray-400 hover:text-neon-blue transition-colors duration-300">Contact</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Features data
+    const features = [
+        { title: "Real-time Visualization", description: "Interactive charts with smooth animations" },
+        { title: "Smart Analysis", description: "Auto-detects patterns and correlations" },
+        { title: "Export Ready", description: "Download insights as PNG, PDF, or JSON" }
+    ];
+    
+    // Upload handling
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('csvFile');
+    
+    uploadZone.addEventListener('click', () => fileInput.click());
+    
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('border-neon-blue', 'bg-neon-blue/5');
+    });
+    
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('border-neon-blue', 'bg-neon-blue/5');
+    });
+    
+    uploadZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('border-neon-blue', 'bg-neon-blue/5');
+        
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.endsWith('.csv')) {
+            await uploadFile(file);
+        }
+    });
+    
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            await uploadFile(file);
+        }
+    });
+    
+    async function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('csv_file', file);
+        
+        // Show loading animation
+        uploadZone.innerHTML = `
+            <div class="text-center py-12">
+                <div class="w-20 h-20 mx-auto mb-6 border-4 border-neon-blue border-t-transparent rounded-full animate-spin"></div>
+                <h3 class="text-xl font-bold mb-2">Processing ${file.name}</h3>
+                <p class="text-gray-400">Analyzing data patterns...</p>
+            </div>
+        `;
+        
+        try {
+            const response = await fetch('/upload/', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Add success animation
+                uploadZone.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-400 to-neon-blue rounded-full flex items-center justify-center">
+                            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">File Analyzed Successfully!</h3>
+                        <p class="text-gray-400 mb-6">${data.rows} rows × ${data.columns} columns</p>
+                        <button onclick="window.location.href='/analyze/${data.session_id}/'" 
+                                class="px-6 py-3 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg font-bold hover:scale-105 transition-transform duration-300">
+                            View Analysis →
+                        </button>
+                    </div>
+                `;
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            uploadZone.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-red-400 to-neon-pink rounded-full flex items-center justify-center">
+                        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Upload Failed</h3>
+                    <p class="text-gray-400 mb-6">${error.message}</p>
+                    <button onclick="location.reload()" 
+                            class="px-6 py-3 gradient-bg border border-neon-pink rounded-lg font-bold">
+                        Try Again
+                    </button>
+                </div>
+            `;
+        }
+    }
+    
+    function useSampleData() {
+        // Create sample CSV data
+        const sampleData = `Date,Product,Category,Revenue,Customers
+2024-01-01,Product A,Electronics,15000,120
+2024-01-02,Product B,Furniture,8500,85
+2024-01-03,Product C,Electronics,22000,180
+2024-01-04,Product D,Clothing,4500,60
+2024-01-05,Product A,Electronics,18000,150`;
+        
+        const blob = new Blob([sampleData], { type: 'text/csv' });
+        const file = new File([blob], 'sample_data.csv', { type: 'text/csv' });
+        
+        // Create mock file input event
+        const event = {
+            target: {
+                files: [file]
+            }
+        };
+        
+        fileInput.files = event.target.files;
+        uploadFile(file);
+    }
+</script>
+{% endblock %}

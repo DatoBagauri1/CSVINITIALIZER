@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen relative text-white bg-[#0a0b10]">
+    <nav class="gradient-bg border-b border-gray-800">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold neon-text" style="color: var(--neon-blue);">CSV Analyzer</a>
+            <div class="flex items-center space-x-4">
+                <span class="text-gray-300">{{ filename }}</span>
+                <span class="px-3 py-1 bg-neon-blue/20 text-neon-blue rounded-full text-sm">
+                    {{ rows }} rows × {{ columns }} cols
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" id="statsRow">
+            <div class="gradient-bg rounded-xl p-6 border border-white/5 hover:border-neon-blue/50 transition-all">
+                <div class="text-3xl font-bold mb-2 neon-text" style="color: var(--neon-blue);">{{ rows }}</div>
+                <div class="text-gray-400 text-xs uppercase tracking-widest">Total Rows</div>
+            </div>
+            <div class="gradient-bg rounded-xl p-6 border border-white/5 hover:border-neon-purple/50 transition-all">
+                <div class="text-3xl font-bold mb-2 neon-text" style="color: var(--neon-purple);">{{ columns }}</div>
+                <div class="text-gray-400 text-xs uppercase tracking-widest">Columns</div>
+            </div>
+            <div class="gradient-bg rounded-xl p-6 border border-white/5 hover:border-neon-pink/50 transition-all">
+                <div class="text-3xl font-bold mb-2 neon-text" style="color: var(--neon-pink);">{{ csv_file.size|filesizeformat }}</div>
+                <div class="text-gray-400 text-xs uppercase tracking-widest">File Size</div>
+            </div>
+            <div class="gradient-bg rounded-xl p-6 border border-white/5 hover:border-green-400/50 transition-all">
+                <div class="text-3xl font-bold mb-2 neon-text" style="color: #00ff88;">{{ csv_file.uploaded_at|date:"M d" }}</div>
+                <div class="text-gray-400 text-xs uppercase tracking-widest">Upload Date</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="gradient-bg rounded-2xl p-6 border border-white/10">
+                <h2 class="text-2xl font-bold mb-6 flex items-center">
+                    <span class="mr-3">📂</span> Column Explorer
+                </h2>
+                
+                <div class="space-y-3 mb-8 max-h-96 overflow-y-auto custom-scrollbar pr-2">
+                    {% for col, col_type in csv_file.column_types.items %}
+                    <div class="group" onclick="exploreColumn('{{ col }}')">
+                        <div class="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer transition-all border border-transparent hover:border-neon-blue/30">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center mr-4 group-hover:neon-shadow">
+                                    <span>{% if col_type == 'numeric' %}🔢{% else %}🏷️{% endif %}</span>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-gray-100">{{ col }}</div>
+                                    <div class="text-xs text-gray-500 uppercase">{{ col_type }}</div>
+                                </div>
+                            </div>
+                            <i class="text-gray-600 group-hover:text-neon-blue">→</i>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <h3 class="text-xl font-bold mb-4 flex items-center"><span class="mr-2">⚡</span> Quick Distribution</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="changeChartType('pie')" class="p-4 rounded-xl bg-white/5 border border-neon-pink/30 hover:border-neon-pink transition-all hover:scale-105">
+                        <div class="text-2xl mb-1">🥧</div>
+                        <div class="font-bold text-sm">Pie Chart</div>
+                    </button>
+
+                </div>
+            </div>
+
+            <div class="gradient-bg rounded-2xl p-6 border border-white/10 flex flex-col">
+                <div id="columnAnalysis" class="mb-4"></div> <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold flex items-center"><span class="mr-3">🎨</span> Visualization</h2>
+                    <button onclick="saveChart()" class="px-6 py-2 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg font-bold hover:shadow-[0_0_20px_rgba(0,243,255,0.5)] transition-all">
+                        Save Chart
+                    </button>
+                </div>
+                
+                <div class="flex-grow min-h-[400px] rounded-xl bg-black/40 border border-white/5 relative mb-6" id="chartContainer">
+                    <canvas id="chartCanvas"></canvas>
+                    
+                    <div id="chartLoading" class="absolute inset-0 flex items-center justify-center bg-black/60 hidden rounded-xl">
+                        <div class="w-10 h-10 border-4 border-neon-blue border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+
+                    <div id="chartError" class="absolute inset-0 flex items-center justify-center bg-black/80 hidden rounded-xl p-6 text-center">
+                        <div>
+                            <div class="text-red-500 text-4xl mb-2">⚠️</div>
+                            <h3 class="font-bold text-white" id="errorTitle"></h3>
+                            <p class="text-gray-400 text-sm" id="errorMessage"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">Column to Analyze</label>
+                        <select id="xAxis" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm" onchange="exploreColumn(this.value)">
+                            {% for col in csv_file.column_types %}
+                            <option value="{{ col }}">{{ col }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">Color Palette</label>
+                        <select id="colorScheme" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm" onchange="updateChart()">
+                            <option value="neon">Neon Nights</option>
+                            <option value="cyber">Cyberpunk</option>
+                            <option value="sunset">Retro Sunset</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-12">
+            <button onclick="window.location.href='/dashboard/{{ session_id }}/'" class="px-10 py-4 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink rounded-2xl font-black text-xl hover:scale-105 transition-all animate-pulse shadow-lg">
+                🚀 OPEN INTERACTIVE DASHBOARD
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const SESSION_ID = {{ session_id }};
+const FILE_ID = {{ csv_file.id }};
+let currentChart = null;
+let activeColumn = null;
+let cachedData = {};
+let activeType = 'pie'; // Pie chart only
+
+const MAX_DISPLAY = 150; // Show top 150 categories; rest go to "Others"
+
+const PALETTES = {
+    neon: ['#00f3ff', '#b967ff', '#ff00ff', '#00ff88', '#7000ff', '#ff8c00', '#ff0066', '#00ffaa', '#ffcc00', '#8800ff'],
+    cyber: ['#ffe200', '#ff0055', '#00ffcc', '#3300ff', '#ff8800', '#ff33aa', '#33ff99', '#9933ff', '#ffdd33', '#33ccff'],
+    sunset: ['#fd1d1d', '#f5af19', '#833ab4', '#2a5298', '#1e3c72', '#ff7a00', '#ff3b8f', '#00dfff', '#a200ff', '#ffcb33']
+};
+
+// 1. Load column data
+async function exploreColumn(colName) {
+    if (!colName) return;
+    activeColumn = colName;
+    document.getElementById('xAxis').value = colName;
+    
+    toggleLoading(true);
+    hideError();
+
+    try {
+        const response = await fetch('/get_column_data/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': '{{ csrf_token }}' 
+            },
+            body: JSON.stringify({ column: colName, file_id: {{ csv_file.id }} })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        cachedData[colName] = result.data;
+        renderStatsBox(colName, result.data);
+        updateChart();
+    } catch (e) {
+        showError("Data Error", e.message);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+// 2. Pie chart rendering with top N categories
+function updateChart() {
+    const data = cachedData[activeColumn];
+    if (!data) return;
+
+    const ctx = document.getElementById('chartCanvas').getContext('2d');
+    if (currentChart) currentChart.destroy();
+
+    let labels = [];
+    let counts = [];
+
+    const freq = {};
+    data.values.forEach(v => {
+        const key = v ? v.toString().trim() : 'Unknown';
+        freq[key] = (freq[key] || 0) + 1;
+    });
+
+    let sorted = Object.entries(freq).sort((a,b) => b[1] - a[1]);
+
+    // Aggregate all beyond MAX_DISPLAY into "Others"
+    if (sorted.length > MAX_DISPLAY) {
+        const othersCount = sorted.slice(MAX_DISPLAY).reduce((a,b) => a + b[1], 0);
+        sorted = sorted.slice(0, MAX_DISPLAY);
+        sorted.push(["Others", othersCount]);
+    }
+
+    labels = sorted.map(i => i[0]);
+    counts = sorted.map(i => i[1]);
+
+    // Auto-generate colors if needed
+    let colors = [];
+    const palette = PALETTES[document.getElementById('colorScheme').value] || PALETTES.neon;
+    for (let i = 0; i < labels.length; i++) {
+        colors.push(palette[i % palette.length]);
+    }
+
+    currentChart = new Chart(ctx, {
+        type: activeType,
+        data: {
+            labels: labels,
+            datasets: [{
+                data: counts,
+                backgroundColor: colors,
+                borderColor: '#0a0b10',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    position: 'bottom', 
+                    labels: { 
+                        color: '#888', 
+                        font: { size: 11 }, 
+                        boxWidth: 12 
+                    } 
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed;
+                            const total = context.chart._metasets[context.datasetIndex].total;
+                            const percent = ((val/total)*100).toFixed(2);
+                            return `${context.label}: ${val} (${percent}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 3. Save chart (only top displayed + config)
+async function saveChart() {
+    if (!activeColumn || !currentChart) {
+        alert("Select a column first!");
+        return;
+    }
+
+    const btn = event.currentTarget;
+    const originalText = btn.innerText;
+    btn.innerText = "Saving...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/create_chart/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': '{{ csrf_token }}' 
+            },
+            body: JSON.stringify({
+                session_id: "{{ session_id }}",
+                title: `${activeColumn} Distribution`,
+                chart_type: activeType,
+                x_column: activeColumn,
+                y_column: "",
+                config: {
+                    scheme: document.getElementById('colorScheme').value,
+                    labels: currentChart.data.labels,
+                    data: currentChart.data.datasets[0].data
+                }
+            })
+        });
+
+        const res = await response.json();
+        if (res.success) {
+            btn.innerText = "✅ Saved!";
+            btn.classList.add('bg-green-500');
+        } else {
+            throw new Error(res.error || "Save failed");
+        }
+    } catch(e) {
+        alert("Error: " + e.message);
+        btn.innerText = "❌ Save Failed";
+    } finally {
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.disabled = false;
+            btn.classList.remove('bg-green-500');
+        }, 2500);
+    }
+}
+
+// HELPERS
+function toggleLoading(s) { document.getElementById('chartLoading').classList.toggle('hidden', !s); }
+function showError(t,m){document.getElementById('chartError').classList.remove('hidden');document.getElementById('errorTitle').innerText=t;document.getElementById('errorMessage').innerText=m;}
+function hideError(){document.getElementById('chartError').classList.add('hidden');}
+function renderStatsBox(n,d){
+    document.getElementById('columnAnalysis').innerHTML = `
+    <div class="bg-neon-blue/5 border border-neon-blue/20 rounded-xl p-4 mb-4 flex justify-between items-center">
+        <div>
+            <div class="text-xs text-neon-blue font-bold uppercase">Column Analysis</div>
+            <div class="text-lg font-bold">${n}</div>
+        </div>
+        <div class="text-right">
+            <div class="text-xl font-bold">${d.unique_count}</div>
+            <div class="text-[10px] text-gray-500 uppercase">Unique Values</div>
+        </div>
+    </div>`;
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+    const firstCol = document.getElementById('xAxis').value;
+    if(firstCol) exploreColumn(firstCol);
+});
+</script>
+
+{% endblock %}

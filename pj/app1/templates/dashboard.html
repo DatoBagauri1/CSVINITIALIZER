@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen relative">
+    <nav class="gradient-bg border-b border-gray-800">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <a href="/" class="text-2xl font-bold neon-text" style="color: var(--neon-blue);">CSV Analyzer</a>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-300">{{ csv_file.name }}</span>
+                    <a href="/analyze/{{ session.id }}/" 
+                       class="px-4 py-2 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg hover:scale-105 transition-transform duration-300">
+                        + Add Chart
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-4xl font-bold mb-2 neon-text" style="color: var(--neon-blue);">Dashboard</h1>
+                <p class="text-gray-400">
+                    {% if charts %}
+                    {{ charts|length }} chart{{ charts|length|pluralize }} created • 
+                    {% endif %}
+                    {{ csv_file.rows }} rows • {{ csv_file.columns }} columns
+                </p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="showExportMenu()" 
+                        class="px-6 py-3 bg-gradient-to-r from-green-400 to-cyan-400 rounded-lg font-bold hover:scale-105 transition-transform duration-300 flex items-center">
+                    📥 Export Dashboard
+                </button>
+            </div>
+        </div>
+
+        {% if charts %}
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {% for chart in charts %}
+            <div class="gradient-bg rounded-xl p-4 hover:scale-[1.02] transition-transform duration-300" 
+                 data-chart-id="{{ chart.id }}">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg">{{ chart.title }}</h3>
+                    <span class="px-2 py-1 bg-gray-800 rounded text-xs">
+                        {{ chart.chart_type|title }}
+                    </span>
+                </div>
+                <div class="h-48 mb-4 rounded-lg bg-gray-900/50 flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="text-4xl mb-2">
+                            {% if chart.chart_type == 'bar' %}📊
+                            {% elif chart.chart_type == 'line' %}📈
+                            {% elif chart.chart_type == 'pie' %}🥧
+                            {% elif chart.chart_type == 'doughnut' %}🍩
+                            {% elif chart.chart_type == 'histogram' %}📋
+                            {% else %}📊{% endif %}
+                        </div>
+                        <p class="text-gray-400 text-sm">
+                            {{ chart.x_column }}{% if chart.y_column %} × {{ chart.y_column }}{% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-xs text-gray-500">
+                    <span>Created {{ chart.created_at|date:"M d, H:i" }}</span>
+                    <button onclick="exportSingleChart({{ chart.id }})" class="text-neon-blue hover:text-neon-purple">
+                        Export
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Dashboard Summary -->
+        <div class="gradient-bg rounded-2xl p-6 mb-8">
+            <h3 class="text-xl font-bold mb-6">Dashboard Summary</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div class="text-center p-4 bg-gray-900/50 rounded-lg">
+                    <div class="text-3xl font-bold neon-text" style="color: var(--neon-blue);">{{ charts|length }}</div>
+                    <div class="text-gray-400">Total Charts</div>
+                </div>
+                <div class="text-center p-4 bg-gray-900/50 rounded-lg">
+                    <div class="text-3xl font-bold neon-text" style="color: var(--neon-purple);" id="chartTypesCount">
+                        <!-- Will be filled by JavaScript -->
+                    </div>
+                    <div class="text-gray-400">Chart Types</div>
+                </div>
+                <div class="text-center p-4 bg-gray-900/50 rounded-lg">
+                    <div class="text-3xl font-bold neon-text" style="color: var(--neon-pink);">
+                        {{ csv_file.rows }}
+                    </div>
+                    <div class="text-gray-400">Data Points</div>
+                </div>
+                <div class="text-center p-4 bg-gray-900/50 rounded-lg">
+                    <div class="text-3xl font-bold neon-text" style="color: #00ff88;">
+                        {{ csv_file.columns }}
+                    </div>
+                    <div class="text-gray-400">Columns</div>
+                </div>
+            </div>
+        </div>
+        
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-20">
+            <div class="text-6xl mb-6 opacity-30">📊</div>
+            <h3 class="text-2xl font-bold mb-4">No Charts Yet</h3>
+            <p class="text-gray-400 mb-8">Create your first visualization to start building the dashboard</p>
+            <a href="/analyze/{{ session.id }}/" 
+               class="px-8 py-3 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg font-bold text-lg hover:scale-105 transition-transform duration-300">
+                Create First Chart →
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div id="exportModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-4">
+    <div class="gradient-bg rounded-2xl p-8 max-w-md w-full">
+        <h3 class="text-2xl font-bold mb-6">Export Dashboard</h3>
+        <div class="space-y-4 mb-8">
+            <button onclick="exportAsPNG()" 
+                    class="w-full p-4 gradient-bg border border-neon-blue rounded-lg hover:border-neon-blue transition-all duration-300 flex items-center justify-between group">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-neon-blue/20 flex items-center justify-center mr-4">
+                        <span class="text-xl">🖼️</span>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-bold">PNG Image</div>
+                        <div class="text-sm text-gray-400">High-quality image file</div>
+                    </div>
+                </div>
+                <span class="text-gray-400 group-hover:text-neon-blue">→</span>
+            </button>
+            
+            <button onclick="exportAsPDF()" 
+                    class="w-full p-4 gradient-bg border border-neon-purple rounded-lg hover:border-neon-purple transition-all duration-300 flex items-center justify-between group">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-neon-purple/20 flex items-center justify-center mr-4">
+                        <span class="text-xl">📄</span>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-bold">PDF Document</div>
+                        <div class="text-sm text-gray-400">Printable document with all charts</div>
+                    </div>
+                </div>
+                <span class="text-gray-400 group-hover:text-neon-purple">→</span>
+            </button>
+            
+            <button onclick="exportAsJSON()" 
+                    class="w-full p-4 gradient-bg border border-neon-pink rounded-lg hover:border-neon-pink transition-all duration-300 flex items-center justify-between group">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-neon-pink/20 flex items-center justify-center mr-4">
+                        <span class="text-xl">📊</span>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-bold">JSON Data</div>
+                        <div class="text-sm text-gray-400">Chart configurations and data</div>
+                    </div>
+                </div>
+                <span class="text-gray-400 group-hover:text-neon-pink">→</span>
+            </button>
+            
+            <button onclick="exportAsCSV()" 
+                    class="w-full p-4 gradient-bg border border-green-400 rounded-lg hover:border-green-400 transition-all duration-300 flex items-center justify-between group">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-green-400/20 flex items-center justify-center mr-4">
+                        <span class="text-xl">📋</span>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-bold">CSV Summary</div>
+                        <div class="text-sm text-gray-400">Dashboard statistics as CSV</div>
+                    </div>
+                </div>
+                <span class="text-gray-400 group-hover:text-green-400">→</span>
+            </button>
+        </div>
+        <div class="flex justify-end">
+            <button onclick="hideExportMenu()" 
+                    class="px-6 py-2 gradient-bg rounded-lg hover:bg-gray-800 transition-colors duration-300">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Success Toast -->
+<div id="successToast" class="fixed top-4 right-4 bg-green-500/90 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+    <div class="flex items-center">
+        <span class="text-xl mr-3">✓</span>
+        <span id="toastMessage">Export successful!</span>
+    </div>
+</div>
+
+<script>
+    // Helper function to get unique chart types
+    function getUniqueChartTypes() {
+        const types = new Set();
+        {% for chart in charts %}
+        types.add("{{ chart.chart_type }}");
+        {% endfor %}
+        return types.size;
+    }
+    
+    // Helper function to get all columns used
+    function getAllColumnsUsed() {
+        const columns = new Set();
+        {% for chart in charts %}
+        columns.add("{{ chart.x_column }}");
+        {% if chart.y_column %}
+        columns.add("{{ chart.y_column }}");
+        {% endif %}
+        {% endfor %}
+        return Array.from(columns);
+    }
+    
+    // Export Modal Functions
+    function showExportMenu() {
+        document.getElementById('exportModal').classList.remove('hidden');
+        document.getElementById('exportModal').classList.add('flex');
+    }
+    
+    function hideExportMenu() {
+        document.getElementById('exportModal').classList.remove('flex');
+        document.getElementById('exportModal').classList.add('hidden');
+    }
+    
+    function showToast(message) {
+        const toast = document.getElementById('successToast');
+        const messageEl = document.getElementById('toastMessage');
+        
+        messageEl.textContent = message;
+        toast.classList.remove('hidden');
+        
+        setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 3000);
+    }
+    
+    // Export Functions
+    function exportAsPNG() {
+        alert('PNG export would require html2canvas library. In production, this would download a PNG image to your Downloads folder.');
+        hideExportMenu();
+    }
+    
+    function exportAsPDF() {
+        alert('PDF export would require jsPDF library. In production, this would download a PDF document to your Downloads folder.');
+        hideExportMenu();
+    }
+    
+    function exportAsJSON() {
+        try {
+            // Collect dashboard data
+            const dashboardData = {
+                metadata: {
+                    exported_at: new Date().toISOString(),
+                    csv_file: "{{ csv_file.name }}",
+                    rows: {{ csv_file.rows }},
+                    columns: {{ csv_file.columns }},
+                    total_charts: {{ charts|length }}
+                },
+                charts: [
+                    {% for chart in charts %}
+                    {
+                        id: {{ chart.id }},
+                        title: "{{ chart.title|escapejs }}",
+                        type: "{{ chart.chart_type }}",
+                        x_column: "{{ chart.x_column|escapejs }}",
+                        y_column: "{{ chart.y_column|default:''|escapejs }}",
+                        created_at: "{{ chart.created_at|date:'c' }}"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                summary: {
+                    chart_types: getUniqueChartTypes(),
+                    columns_used: getAllColumnsUsed()
+                }
+            };
+            
+            // Convert to JSON and download
+            const dataStr = JSON.stringify(dashboardData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const link = document.createElement('a');
+            link.download = `dashboard-${new Date().toISOString().slice(0,10)}.json`;
+            link.href = dataUri;
+            link.click();
+            
+            showToast('✅ JSON exported successfully!');
+            hideExportMenu();
+            
+        } catch (error) {
+            console.error('JSON export error:', error);
+            alert('Failed to export JSON: ' + error.message);
+        }
+    }
+    
+    function exportAsCSV() {
+        try {
+            // Create CSV content
+            let csvContent = "Dashboard Summary\n\n";
+            csvContent += "Metric,Value\n";
+            csvContent += `Total Charts,{{ charts|length }}\n`;
+            csvContent += `CSV File,{{ csv_file.name }}\n`;
+            csvContent += `Rows,{{ csv_file.rows }}\n`;
+            csvContent += `Columns,{{ csv_file.columns }}\n`;
+            csvContent += `Chart Types,${getUniqueChartTypes()}\n`;
+            csvContent += `Created,${new Date().toISOString()}\n\n`;
+            
+            csvContent += "Charts\n";
+            csvContent += "ID,Title,Type,X Column,Y Column,Created\n";
+            
+            {% for chart in charts %}
+            csvContent += `{{ chart.id }},"{{ chart.title|escapejs }}","{{ chart.chart_type }}","{{ chart.x_column|escapejs }}","{{ chart.y_column|default:''|escapejs }}","{{ chart.created_at|date:'Y-m-d H:i' }}"\n`;
+            {% endfor %}
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `dashboard-summary-${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+            
+            showToast('✅ CSV exported successfully!');
+            hideExportMenu();
+            
+        } catch (error) {
+            console.error('CSV export error:', error);
+            alert('Failed to export CSV: ' + error.message);
+        }
+    }
+    
+    function exportSingleChart(chartId) {
+        try {
+            // Find chart data from the list
+            const chartData = {
+                id: chartId,
+                exported_at: new Date().toISOString(),
+                message: "Individual chart export - Data would be fetched from server in production"
+            };
+            
+            const dataStr = JSON.stringify(chartData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const link = document.createElement('a');
+            link.download = `chart-${chartId}-${new Date().toISOString().slice(0,10)}.json`;
+            link.href = dataUri;
+            link.click();
+            
+            showToast('✅ Chart data exported!');
+            
+        } catch (error) {
+            console.error('Single chart export error:', error);
+            alert('Failed to export chart: ' + error.message);
+        }
+    }
+    
+    // Initialize dashboard on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update chart types count
+        const chartTypesElement = document.getElementById('chartTypesCount');
+        if (chartTypesElement) {
+            chartTypesElement.textContent = getUniqueChartTypes();
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('exportModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideExportMenu();
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideExportMenu();
+            }
+        });
+    });
+</script>
+{% endblock %}

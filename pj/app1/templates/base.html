@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Analyzer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <!-- Add CSRF token meta tag -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    
+    <!-- FIX: Use proper Tailwind installation or local CDN -->
+    <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'neon-blue': '#00f3ff',
+                        'neon-purple': '#b967ff',
+                        'neon-pink': '#ff00ff',
+                        'dark-bg': '#0a0a0f',
+                        'card-bg': 'rgba(16, 18, 27, 0.8)',
+                    },
+                    fontFamily: {
+                        'orbitron': ['Orbitron', 'sans-serif'],
+                        'exo': ['Exo 2', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #b967ff;
+            --neon-pink: #ff00ff;
+            --dark-bg: #0a0a0f;
+            --card-bg: rgba(16, 18, 27, 0.8);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Exo 2', 'Exo 2', sans-serif;
+            background-color: var(--dark-bg);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(0, 243, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(185, 103, 255, 0.1) 0%, transparent 50%);
+        }
+        
+        .neon-text {
+            text-shadow: 
+                0 0 10px currentColor,
+                0 0 20px currentColor;
+        }
+        
+        .neon-border {
+            border: 2px solid var(--neon-blue);
+            box-shadow: 
+                0 0 10px var(--neon-blue),
+                inset 0 0 10px var(--neon-blue);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, rgba(16, 18, 27, 0.95) 0%, rgba(26, 28, 40, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .glow {
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.05;
+            pointer-events: none;
+        }
+        
+        /* Fix for loading spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--neon-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Fix for canvas elements */
+        canvas {
+            display: block;
+            max-width: 100%;
+        }
+        
+        /* Better scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(16, 18, 27, 0.5);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--neon-blue);
+            border-radius: 4px;
+        }
+        
+        /* Selection color */
+        ::selection {
+            background-color: var(--neon-blue);
+            color: black;
+        }
+        
+        /* Prevent text selection on certain elements */
+        .no-select {
+            user-select: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Auth Navigation -->
+    <div class="fixed top-4 right-4 z-40">
+        {% if user.is_authenticated %}
+        <div class="flex items-center space-x-4">
+            <div class="gradient-bg rounded-lg px-4 py-2 flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-r from-neon-blue to-neon-purple flex items-center justify-center">
+                    <span class="text-sm font-bold">{{ user.username|first|upper }}</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="text-sm font-medium">{{ user.username }}</div>
+                    <div class="text-xs text-gray-400">Logged in</div>
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <a href="{% url 'my_charts' %}" 
+                   class="px-4 py-2 gradient-bg rounded-lg text-sm hover:scale-105 transition-transform duration-300 no-select">
+                    My Charts
+                </a>
+                <a href="{% url 'logout' %}" 
+                   class="px-4 py-2 bg-red-500/20 border border-red-500 rounded-lg text-sm hover:bg-red-500/30 transition-colors no-select">
+                    Logout
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="flex space-x-3">
+            <a href="{% url 'login' %}" 
+               class="px-4 py-2 gradient-bg rounded-lg hover:scale-105 transition-transform duration-300 no-select">
+                Login
+            </a>
+            <a href="{% url 'signup' %}" 
+               class="px-4 py-2 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg hover:scale-105 transition-transform duration-300 no-select">
+                Sign Up
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Animated Background Elements -->
+    <div class="matrix-bg" id="matrixCanvas"></div>
+    
+    <!-- Floating Particles -->
+    <div id="particles"></div>
+    
+    <!-- Loading Overlay (Global) -->
+    <div id="globalLoading" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
+        <div class="text-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-neon-blue font-orbitron">Loading...</p>
+        </div>
+    </div>
+    
+    <!-- Error Toast (Global) -->
+    <div id="globalError" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500/90 text-white px-6 py-3 rounded-lg shadow-lg z-50 hidden max-w-md">
+        <div class="flex items-center space-x-3">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <div class="font-bold" id="globalErrorTitle">Error</div>
+                <div class="text-sm" id="globalErrorMessage">Something went wrong</div>
+            </div>
+            <button onclick="document.getElementById('globalError').classList.add('hidden')" class="ml-4 text-white hover:text-gray-300">
+                ✕
+            </button>
+        </div>
+    </div>
+    
+    <!-- Success Toast (Global) -->
+    <div id="globalSuccess" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500/90 text-white px-6 py-3 rounded-lg shadow-lg z-50 hidden max-w-md">
+        <div class="flex items-center space-x-3">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <div class="font-bold" id="globalSuccessTitle">Success</div>
+                <div class="text-sm" id="globalSuccessMessage">Operation completed successfully</div>
+            </div>
+            <button onclick="document.getElementById('globalSuccess').classList.add('hidden')" class="ml-4 text-white hover:text-gray-300">
+                ✕
+            </button>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <main class="relative z-10 pt-20 pb-10 px-4 min-h-screen">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="relative z-10 py-6 text-center text-gray-500 text-sm border-t border-gray-800/50 mt-10">
+        <div class="container mx-auto px-4">
+            <p>CSV Analyzer &copy; 2024 | Built with Django & Chart.js</p>
+            <p class="mt-2">Visualize your data with neon style</p>
+        </div>
+    </footer>
+    
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Core JavaScript -->
+    <script>
+        // Global utility functions
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        function getCSRFToken() {
+            // Try meta tag first
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken && metaToken.getAttribute('content')) {
+                return metaToken.getAttribute('content');
+            }
+            
+            // Try cookie
+            const cookieToken = getCookie('csrftoken');
+            if (cookieToken) {
+                return cookieToken;
+            }
+            
+            console.warn('CSRF token not found');
+            return '';
+        }
+        
+        function showGlobalLoading(show) {
+            const loadingEl = document.getElementById('globalLoading');
+            if (loadingEl) {
+                loadingEl.classList.toggle('hidden', !show);
+            }
+        }
+        
+        function showGlobalError(title, message, duration = 5000) {
+            const errorEl = document.getElementById('globalError');
+            if (errorEl) {
+                document.getElementById('globalErrorTitle').textContent = title;
+                document.getElementById('globalErrorMessage').textContent = message;
+                errorEl.classList.remove('hidden');
+                
+                if (duration > 0) {
+                    setTimeout(() => {
+                        errorEl.classList.add('hidden');
+                    }, duration);
+                }
+            }
+        }
+        
+        function showGlobalSuccess(title, message, duration = 3000) {
+            const successEl = document.getElementById('globalSuccess');
+            if (successEl) {
+                document.getElementById('globalSuccessTitle').textContent = title;
+                document.getElementById('globalSuccessMessage').textContent = message;
+                successEl.classList.remove('hidden');
+                
+                if (duration > 0) {
+                    setTimeout(() => {
+                        successEl.classList.add('hidden');
+                    }, duration);
+                }
+            }
+        }
+        
+        // Matrix background - FIXED VERSION
+        function initMatrixBackground() {
+            const canvas = document.getElementById('matrixCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Could not get 2D context for matrix background');
+                return;
+            }
+            
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            
+            resizeCanvas();
+            
+            const chars = "01";
+            const charSize = 14;
+            const columns = Math.floor(canvas.width / charSize);
+            const drops = Array(columns).fill(1);
+            
+            function drawMatrix() {
+                ctx.fillStyle = 'rgba(10, 10, 15, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#0F0';
+                ctx.font = charSize + 'px monospace';
+                
+                for (let i = 0; i < drops.length; i++) {
+                    const text = chars[Math.floor(Math.random() * chars.length)];
+                    ctx.fillText(text, i * charSize, drops[i] * charSize);
+                    
+                    if (drops[i] * charSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+            
+            let matrixInterval = setInterval(drawMatrix, 50);
+            
+            // Clean up on page navigation
+            window.addEventListener('beforeunload', () => {
+                clearInterval(matrixInterval);
+            });
+            
+            // Handle resize
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                clearInterval(matrixInterval);
+                matrixInterval = setInterval(drawMatrix, 50);
+            });
+        }
+        
+        // Floating particles - FIXED VERSION
+        function initParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            
+            // Clear existing particles
+            particlesContainer.innerHTML = '';
+            
+            // Create particles
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'absolute rounded-full pointer-events-none';
+                particle.style.width = Math.random() * 3 + 1 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.top = Math.random() * 100 + 'vh';
+                particle.style.backgroundColor = Math.random() > 0.5 ? '#00f3ff' : '#b967ff';
+                particle.style.opacity = Math.random() * 0.2 + 0.1;
+                particle.style.animation = `float ${Math.random() * 15 + 10}s linear infinite`;
+                particle.style.animationDelay = Math.random() * 5 + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+        
+        // Initialize everything when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Base template initialized');
+            
+            // Initialize animations
+            initMatrixBackground();
+            initParticles();
+            
+            // Make utility functions globally available
+            window.getCSRFToken = getCSRFToken;
+            window.showGlobalLoading = showGlobalLoading;
+            window.showGlobalError = showGlobalError;
+            window.showGlobalSuccess = showGlobalSuccess;
+            
+            // Add escape key handler for modals
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    // Hide all modals/toasts
+                    document.getElementById('globalError')?.classList.add('hidden');
+                    document.getElementById('globalSuccess')?.classList.add('hidden');
+                    document.getElementById('globalLoading')?.classList.add('hidden');
+                }
+            });
+            
+            // Add click outside to close toasts
+            document.addEventListener('click', function(e) {
+                const errorEl = document.getElementById('globalError');
+                const successEl = document.getElementById('globalSuccess');
+                
+                if (errorEl && !errorEl.contains(e.target) && !errorEl.classList.contains('hidden')) {
+                    errorEl.classList.add('hidden');
+                }
+                
+                if (successEl && !successEl.contains(e.target) && !successEl.classList.contains('hidden')) {
+                    successEl.classList.add('hidden');
+                }
+            });
+        });
+        
+        // Handle page visibility change (pause animations when not visible)
+        document.addEventListener('visibilitychange', function() {
+            const particles = document.querySelectorAll('#particles div');
+            particles.forEach(particle => {
+                if (document.hidden) {
+                    particle.style.animationPlayState = 'paused';
+                } else {
+                    particle.style.animationPlayState = 'running';
+                }
+            });
+        });
+        
+        // Prevent right-click on canvas elements
+        document.addEventListener('contextmenu', function(e) {
+            if (e.target.tagName === 'CANVAS') {
+                e.preventDefault();
+            }
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

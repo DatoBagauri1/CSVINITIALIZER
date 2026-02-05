@@ -1,0 +1,31 @@
+/* Additional custom styles */
+@keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+.shimmer {
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(0, 243, 255, 0.2) 50%, 
+        transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+.chart-tooltip {
+    background: rgba(16, 18, 27, 0.95);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.data-point {
+    transition: all 0.3s ease;
+}
+
+.data-point:hover {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 8px currentColor);
+}
